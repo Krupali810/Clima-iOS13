@@ -7,6 +7,7 @@
 //
 
 import UIKit
+import CoreLocation
 
 class WeatherViewController: UIViewController {
     
@@ -15,11 +16,17 @@ class WeatherViewController: UIViewController {
     @IBOutlet weak var temperatureLabel: UILabel!
     @IBOutlet weak var searchButton: UIButton!
     @IBOutlet weak var cityLabel: UILabel!
+    @IBOutlet weak var locationButton: UIButton!
     
-    var weatherInstance = WeatherManager()
+    var weatherManager = WeatherManager()
+    var locationManager = CLLocationManager()
+    
     override func viewDidLoad() {
         super.viewDidLoad()
-        weatherInstance.delegate = self
+        locationManager.requestWhenInUseAuthorization()
+        locationManager.delegate = self
+        locationManager.requestLocation()
+        weatherManager.delegate = self
         searchTextField.delegate = self
     }
     
@@ -28,12 +35,15 @@ class WeatherViewController: UIViewController {
         print(searchTextField.text ?? "")
     }
     
-    
+    @IBAction func locationButtonClicked(_ sender: UIButton) {
+        locationManager.requestLocation()
+    }
 }
+
+//MARK: - UITextFieldDelegate
 extension WeatherViewController : UITextFieldDelegate{
     func textFieldShouldReturn(_ textField: UITextField) -> Bool {
         textField.endEditing(true)
-        print(textField.text ?? "")
         return true
     }
     
@@ -49,13 +59,14 @@ extension WeatherViewController : UITextFieldDelegate{
         //Fetch value of entered text
         //Fetch weather of the city
         if let cityName = textField.text {
-            weatherInstance.fetchWeatherURL(cityName)
+            weatherManager.fetchWeatherURL(cityName)
         }
         textField.placeholder = "Search"
         textField.text = ""
     }
 }
 
+//MARK: - WeatherManagerDelegate
 extension WeatherViewController: WeatherManagerDelegate{
     func didFailWithError(_ error: Error) {
         print(error)
@@ -69,5 +80,21 @@ extension WeatherViewController: WeatherManagerDelegate{
             self.cityLabel.text = weather.cityName
             self.conditionImageView.image = UIImage(systemName: weather.conditionName)
         }
+    }
+}
+
+
+//MARK: - CLLocationManager
+
+extension WeatherViewController : CLLocationManagerDelegate{
+    func locationManager(_ manager: CLLocationManager,
+                         didUpdateLocations locations: [CLLocation]){
+        locationManager.stopUpdatingLocation()
+        if let location = locations.last{
+            weatherManager.fetchWeatherURL(lat: location.coordinate.latitude, lon: location.coordinate.longitude)
+        }
+    }
+    
+    func locationManager(_ manager: CLLocationManager, didFailWithError error: Error) {
     }
 }
